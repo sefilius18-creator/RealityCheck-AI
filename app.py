@@ -19,8 +19,16 @@ genai.configure(
     api_key=st.secrets["GEMINI_API_KEY"]
 )
 
+try:
+
+    models = genai.list_models()
+
+except Exception as e:
+
+    st.error(f"Gemini API Error: {e}")
+
 model = genai.GenerativeModel(
-    "models/gemini-1.5-flash"
+    "gemini-pro"
 )
 
 # =========================================
