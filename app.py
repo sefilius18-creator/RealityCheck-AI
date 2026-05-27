@@ -1,5 +1,5 @@
 import streamlit as st
-import random
+import google.generativeai as genai
 
 # =========================================
 # CONFIG
@@ -9,6 +9,18 @@ st.set_page_config(
     page_title="RealityCheck AI",
     page_icon="🧠",
     layout="wide"
+)
+
+# =========================================
+# GEMINI API
+# =========================================
+
+genai.configure(
+    api_key=st.secrets["GEMINI_API_KEY"]
+)
+
+model = genai.GenerativeModel(
+    "gemini-1.5-flash"
 )
 
 # =========================================
@@ -41,6 +53,13 @@ div[data-testid="stSidebar"] {
     margin-top: 20px;
 }
 
+.metric-box {
+    background-color: #1C1F26;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -49,6 +68,7 @@ div[data-testid="stSidebar"] {
 # =========================================
 
 st.title("🧠 RealityCheck AI")
+
 st.caption(
     "AI untuk mengecek apakah ide kamu realistis atau tidak"
 )
@@ -79,12 +99,12 @@ st.subheader("💡 Tulis Ide Kamu")
 
 idea = st.text_area(
     "Masukkan ide atau rencana kamu",
-    height=180,
+    height=200,
     placeholder="Contoh: Saya mau buka coffee shop modal 10 juta..."
 )
 
 # =========================================
-# GENERATE
+# BUTTON ANALYZE
 # =========================================
 
 if st.button("🚀 Analyze Reality"):
@@ -95,111 +115,121 @@ if st.button("🚀 Analyze Reality"):
 
     else:
 
-        # =========================================
-        # SCORE
-        # =========================================
+        with st.spinner("AI sedang menganalisis ide..."):
 
-        score = random.randint(35, 90)
+            prompt = f"""
+            Kamu adalah AI strategic advisor yang realistis,
+            logis, dan brutal jujur.
 
-        if score >= 75:
-            risk = "LOW"
-            color = "🟢"
+            Analisis ide berikut:
 
-        elif score >= 55:
-            risk = "MEDIUM"
-            color = "🟡"
+            Ide:
+            {idea}
 
-        else:
-            risk = "HIGH"
-            color = "🔴"
+            Kategori:
+            {category}
 
-        # =========================================
-        # ANALYSIS TEMPLATE
-        # =========================================
+            Berikan output dengan format berikut:
 
-        risks = [
-            "Kompetitor terlalu banyak",
-            "Modal mungkin tidak cukup",
-            "Pasar belum tervalidasi",
-            "Butuh marketing yang kuat",
-            "Eksekusi lebih sulit dari yang terlihat",
-            "Butuh konsistensi jangka panjang"
-        ]
+            Reality Score: [0-100]
+            Risk Level: [LOW/MEDIUM/HIGH]
 
-        blindspots = [
-            "Biaya operasional bulanan",
-            "Mental pressure",
-            "Customer acquisition",
-            "Cashflow management",
-            "Kemungkinan burnout",
-            "Kesulitan scaling"
-        ]
+            Risiko Utama:
+            - poin
 
-        strategies = [
-            "Mulai kecil dulu sebelum scale",
-            "Validasi market terlebih dahulu",
-            "Fokus pada niche spesifik",
-            "Bangun audience sebelum launching",
-            "Kurangi risiko operasional",
-            "Gunakan sistem yang sederhana"
-        ]
+            Blind Spots:
+            - poin
 
-        selected_risks = random.sample(risks, 3)
-        selected_blindspots = random.sample(blindspots, 2)
-        selected_strategies = random.sample(strategies, 3)
+            Survival Strategy:
+            - poin
+
+            Kesimpulan:
+            - kesimpulan realistis
+
+            Gunakan bahasa Indonesia.
+            """
+
+            response = model.generate_content(prompt)
+
+            result = response.text
 
         # =========================================
-        # OUTPUT
+        # PARSE SCORE
+        # =========================================
+
+        score = 50
+        risk = "MEDIUM"
+        color = "🟡"
+
+        try:
+
+            lines = result.split("\n")
+
+            for line in lines:
+
+                if "Reality Score" in line:
+
+                    score_text = line.split(":")[1].strip()
+
+                    score = int(
+                        ''.join(filter(str.isdigit, score_text))
+                    )
+
+                if "Risk Level" in line:
+
+                    risk = line.split(":")[1].strip().upper()
+
+            if risk == "LOW":
+                color = "🟢"
+
+            elif risk == "MEDIUM":
+                color = "🟡"
+
+            else:
+                color = "🔴"
+
+        except:
+            pass
+
+        # =========================================
+        # RESULT UI
         # =========================================
 
         st.markdown("---")
 
-        st.subheader("📊 Reality Analysis")
+        col1, col2 = st.columns(2)
 
-        st.metric(
-            "Reality Score",
-            f"{score}%"
-        )
+        with col1:
+
+            st.metric(
+                "Reality Score",
+                f"{score}/100"
+            )
+
+        with col2:
+
+            st.metric(
+                "Risk Level",
+                f"{color} {risk}"
+            )
+
+        st.markdown("---")
+
+        st.subheader("🧠 AI Reality Analysis")
 
         st.markdown(
-            f"### {color} Risk Level: {risk}"
+            f"""
+            <div class="result-box">
+            {result}
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
-        # RISKS
-        st.markdown("## ⚠️ Risiko Utama")
+# =========================================
+# FOOTER
+# =========================================
 
-        for r in selected_risks:
-            st.write(f"- {r}")
+st.markdown("---")
 
-        # BLINDSPOTS
-        st.markdown("## 👀 Blind Spots")
-
-        for b in selected_blindspots:
-            st.write(f"- {b}")
-
-        # STRATEGY
-        st.markdown("## 🛡️ Survival Strategy")
-
-        for s in selected_strategies:
-            st.write(f"- {s}")
-
-        # FINAL THOUGHT
-        st.markdown("## 🧠 Kesimpulan AI")
-
-        if score >= 75:
-
-            st.success(
-                "Ide ini cukup realistis jika dieksekusi dengan disiplin."
-            )
-
-        elif score >= 55:
-
-            st.warning(
-                "Ide memiliki potensi, tetapi ada beberapa risiko besar."
-            )
-
-        else:
-
-            st.error(
-                "Ide berisiko tinggi jika dijalankan tanpa strategi matang."
-      )
+st.caption("RealityCheck AI © 2026")
